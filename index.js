@@ -31,7 +31,6 @@ async function run() {
     const usersCollection = db.collection("users");
     const bookingsCollection = db.collection("bookings");
 
-    // ---------------- USERS -----------------
     app.post("/users", async (req, res) => {
       const newUser = req.body;
       const exists = await usersCollection.findOne({ email: newUser.email });
@@ -43,16 +42,26 @@ async function run() {
       res.send({ message: "User created", user: newUser });
     });
 
-    // ---------------- SERVICES -----------------
-
-    // Get only services created by this provider
     app.get("/services", async (req, res) => {
       const providerEmail = req.query.providerEmail;
-
       const query = providerEmail ? { email: providerEmail } : {};
-
       const services = await servicesCollection.find(query).toArray();
       res.send(services);
+    });
+
+    app.get("/services/filter", async (req, res) => {
+      const { min, max } = req.query;
+
+      let query = {};
+
+      if (min || max) {
+        query.price = {};
+        if (min) query.price.$gte = Number(min);
+        if (max) query.price.$lte = Number(max);
+      }
+
+      const filtered = await servicesCollection.find(query).toArray();
+      res.send(filtered);
     });
 
     app.get("/services/:id", async (req, res) => {
@@ -66,21 +75,14 @@ async function run() {
       res.send(service);
     });
 
-    // Add new service (with provider email)
     app.post("/services", async (req, res) => {
       const newService = req.body;
-
-      if (!newService.email) {
-        return res.status(400).send({ error: "Provider email is required" });
-      }
-
       newService.price = Number(newService.price);
 
       const result = await servicesCollection.insertOne(newService);
       res.send({ insertedId: result.insertedId });
     });
 
-    // Update service
     app.patch("/services/:id", async (req, res) => {
       const id = req.params.id;
       const updates = req.body;
@@ -95,7 +97,6 @@ async function run() {
       res.send(result);
     });
 
-    // Delete service
     app.delete("/services/:id", async (req, res) => {
       const id = req.params.id;
 
@@ -108,8 +109,6 @@ async function run() {
 
       res.send({ deletedId: id });
     });
-
-    // ---------------- BOOKINGS -----------------
 
     app.post("/bookings", async (req, res) => {
       const booking = req.body;
